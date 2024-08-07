@@ -33,6 +33,8 @@ class Editor:
             log_file = os.path.join(log_dir, "navie.log")
             log_file_lock = os.path.join(log_dir, "navie.log.lock")
 
+            os.makedirs(log_dir, exist_ok=True)
+
             def log_message(msg):
                 with open(log_file_lock, "w"):
                     with open(log_file, "a") as log_file_handle:
