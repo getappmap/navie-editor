@@ -7,9 +7,6 @@ inputs:
   github_token:
     description: The GitHub token
     required: true
-  directory:
-    description: Directory to which the action is installed.
-    default: .
 runs:
   using: composite
   steps:
@@ -32,7 +29,7 @@ runs:
       - name: Create the plan
         shell: bash
         run: |
-          python "${{ inputs.directory }}/plan/plan.py"
+          python "${{ github.action_path }}/plan.py"
       - name: Update the issue with the plan
         shell: bash
         run: |
