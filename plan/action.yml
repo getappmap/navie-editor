@@ -1,0 +1,62 @@
+name: Plan with Navie AI
+description: Interprets an Issue and plans a solution using Navie AI
+inputs:
+  issue_id:
+    description: The ID of the issue
+    required: true
+  github_token:
+    description: The GitHub token
+    required: true
+runs:
+  using: composite
+  steps:
+      - name: Install AppMap tools
+        uses: getappmap/install-action@v1
+        with:
+          install-appmap-library: false
+          build-patch-file: false
+      - name: Create the issue.txt file
+        shell: bash
+        env:
+          GH_TOKEN: ${{ inputs.github_token }}
+        run: |
+          mkdir -p .appmap/navie/work
+          mkdir -p .appmap/navie/log
+
+          gh issue view ${{ inputs.issue_id }} --json title --jq '.title' > .appmap/navie/work/issue.txt
+          echo "" >> .appmap/navie/work/issue.txt
+          gh issue view ${{ inputs.issue_id }} --json body --jq '.body' >> .appmap/navie/work/issue.txt
+      - name: Create the plan
+        shell: bash
+        run: |
+          python ./plan/plan.py
+      - name: Update the issue with the plan
+        shell: bash
+        run: |
+          generated_plan_file=.appmap/navie/work/plan/plan.md
+          master_plan_file=.appmap/navie/plan.md
+
+          echo "<!-- navie-plan -->" > $master_plan_file
+          echo "" >> $master_plan_file
+          cat $generated_plan_file >> $master_plan_file
+          encoded_body=$(jq -Rs . < $master_plan_file)
+
+          comments=$(curl \
+            -H "Authorization: Bearer ${{ inputs.github_token }}" \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.issue_id }}/comments"
+          )
+          comment_id=$(echo $comments | jq -r '.[] | select(.body | contains("<!-- navie-plan -->")) | .id')
+
+          # If the comment is found, edit the comment using cURL
+          # If the comment is not found, add a new comment using cURL
+          if [ -z "$comment_id" ]; then
+            echo "Creating comment"
+            curl -X POST -H "Authorization: Bearer ${{ inputs.github_token }}" -H "Content-Type: application/json" \
+              -d "{\"body\": $encoded_body}" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.issue_id }}/comments"
+          else
+            echo "Updating comment: $comment_id"
+            curl -X PATCH -H "Authorization: Bearer ${{ inputs.github_token }}" -H "Content-Type: application/json" \
+              -d "{\"body\": $encoded_body}" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/comments/$comment_id"
+          fi

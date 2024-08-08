@@ -1,0 +1,32 @@
+name: Plan issue with Navie
+
+on:
+  issues:
+    types: [
+      opened,
+      edited,
+      reopened,
+      labeled,
+      unlabeled
+    ]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  plan:
+    if: contains(github.event.issue.labels.*.name, 'navie')
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Plan with Navie
+        uses: ./plan
+        with:
+          issue_id: ${{ github.event.issue.number }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
