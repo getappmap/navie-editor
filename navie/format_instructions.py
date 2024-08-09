@@ -45,38 +45,36 @@ The <original> and <modified> content should be wrapped in a CDATA section to av
 <change>
 <file change-number-for-this-file="1">src/myproj/myfunc.py</file>
 <original line-count="14" no-ellipsis="true"><![CDATA[
-class DateTime(Field):
-    def bind_to_schema(self, field_name, schema):
-        self.field_name = field_name
-        self.container = schema
-        # Configure format from schema opts
-        if self.format is None and hasattr(schema, "opts"):
-            self.format = schema.opts.datetimeformat
-            self.dateformat = schema.opts.dateformat
-            self.metadata["marshmallow_field"] = self
-        # _bind_to_schema is called before processors
-        if hasattr(schema, "root"):
-            self.root = schema.root
-        if self.metadata.get("validate"):
-            self._validate = self.metadata["validate"]
+class TimeStampInfo(ElementField):
+    def link_to_structure(self, element_name, blueprint):
+        self.element_name = element_name
+        self.container = blueprint
+        # Set format from blueprint config
+        if self.time_format is None:
+            self.time_format = blueprint.config.time_format
+            self.date_format = blueprint.config.date_format
+            self.details["schema_field"] = self
+        # link_to_structure is executed before handlers
+        if hasattr(blueprint, "base"):
+            self.base = blueprint.base
+        if self.details.get("validator"):
+            self._validator = self.details["validator"]
 ]]></original>
-<modified no-ellipsis="true"><![CDATA[
-class DateTime(Field):
-    def bind_to_schema(self, field_name, schema):
-        self.field_name = field_name
-        self.container = schema
-        # Check if 'schema' has 'opts' before accessing
-        if hasattr(schema, "opts"):
-            # Configure format from schema opts
-            if self.format is None:
-                self.format = schema.opts.datetimeformat
-                self.dateformat = schema.opts.dateformat
-            self.metadata["marshmallow_field"] = self
-            # _bind_to_schema is called before processors
-            if hasattr(schema, "root"):
-                self.root = schema.root
-            if self.metadata.get("validate"):
-                self._validate = self.metadata["validate"]
+<modified line-count="14" no-ellipsis="true"><![CDATA[
+class TimeStampInfo(ElementField):
+    def link_to_structure(self, element_name, blueprint):
+        self.element_name = element_name
+        self.container = blueprint
+        # Set format from blueprint config
+        if self.time_format is None and hasattr(blueprint, "config"):
+            self.time_format = blueprint.config.time_format
+            self.date_format = blueprint.config.date_format
+            self.details["schema_field"] = self
+        # link_to_structure is executed before handlers
+        if hasattr(blueprint, "base"):
+            self.base = blueprint.base
+        if self.details.get("validator"):
+            self._validator = self.details["validator"]
 ]]></modified>
 </change>
-    """
+"""
