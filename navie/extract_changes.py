@@ -12,6 +12,14 @@ class FileUpdate:
     def __repr__(self):
         return f"FileUpdate(file={self.file}, original={self.original}, modified={self.modified})"
 
+    def __eq__(self, other):
+        return (
+            isinstance(other, FileUpdate)
+            and self.file == other.file
+            and self.original == other.original
+            and self.modified == other.modified
+        )
+
 
 def extract_changes(content: str) -> List[FileUpdate]:
     # Search for <change> tags
