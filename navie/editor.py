@@ -305,14 +305,18 @@ class Editor:
             r"([a-zA-Z0-9_" + path_separator_escaped + r"\-]+\.(?:[a-zA-Z0-9]{1,4}))\b"
         )
 
-        files = list(set(re.findall(file_regexp, content)))
-        print(f"Path-like strings in content: {files}")
-        existing_files = [f for f in files if os.path.exists(f)]
-        print(f"File paths that exist on the filesystem: {existing_files}")
+        detected_files = re.findall(file_regexp, content)
+        print(f"Path-like strings in content: {detected_files}")
 
-        self._log_response(", ".join(existing_files))
+        absolute_files = [os.path.abspath(f) for f in detected_files]
+        unique_files = list(set(absolute_files))
+        existing_files = [f for f in unique_files if os.path.exists(f)]
+        files = [os.path.relpath(f) for f in existing_files]
 
-        return existing_files
+        print(f"File paths that exist on the filesystem: {files}")
+        self._log_response(", ".join(files))
+
+        return files
 
     def generate(
         self,
