@@ -1,6 +1,4 @@
-import pytest
 from typing import List
-from xml.etree.ElementTree import ParseError
 from navie.extract_changes import (
     extract_changes,
     FileUpdate,
