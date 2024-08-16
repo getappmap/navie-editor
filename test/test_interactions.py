@@ -15,7 +15,7 @@ class TestInteractions(unittest.TestCase):
         with self.assertRaises(QuitException):
             self.interactions.enter_to_continue()
         self.mock_user_interface.get_input.assert_called_once_with(
-            "Press enter to continue (or 'q' to quit):"
+            "Press enter to continue (or 'q' to quit): "
         )
 
     def test_enter_to_continue_continue(self):
@@ -25,7 +25,7 @@ class TestInteractions(unittest.TestCase):
         except QuitException:
             self.fail("enter_to_continue() raised QuitException unexpectedly!")
         self.mock_user_interface.get_input.assert_called_once_with(
-            "Press enter to continue (or 'q' to quit):"
+            "Press enter to continue (or 'q' to quit): "
         )
 
     def test_collect_problem_statement(self):
@@ -48,7 +48,7 @@ class TestInteractions(unittest.TestCase):
             "Diff for file the-file:"
         )
         self.mock_user_interface.get_input.assert_called_once_with(
-            "Do you want to apply the changes? (y/n/q)"
+            "Do you want to apply the changes? (y/n/q): "
         )
 
     def test_confirm_diff_quit(self):
@@ -59,7 +59,7 @@ class TestInteractions(unittest.TestCase):
             "Diff for file the-file:"
         )
         self.mock_user_interface.get_input.assert_called_once_with(
-            "Do you want to apply the changes? (y/n/q)"
+            "Do you want to apply the changes? (y/n/q): "
         )
 
     def test_colorize_diff(self):

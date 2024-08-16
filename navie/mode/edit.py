@@ -136,7 +136,7 @@ class Edit:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--workdir", help="Work directory")
+    parser.add_argument("-d", "--directory", help="Program working directory")
     parser.add_argument(
         "--no-interactive",
         action="store_true",
@@ -150,6 +150,9 @@ def main():
         dest="files",
     )
     args = parser.parse_args()
+
+    if args.directory:
+        os.chdir(args.directory)
 
     interactive = True if not args.no_interactive else False
 
@@ -165,14 +168,15 @@ def main():
             print("Error: Issue description is required in non-interactive mode")
             sys.exit(1)
 
-        problem_statement = interactions.collect_problem_statement()
+    problem_statement = interactions.collect_problem_statement()
+    if not problem_statement.strip():
+        print("Problem statement is empty. Exiting.")
+        sys.exit(1)
 
     issue_sha1 = hashlib.sha1(problem_statement.encode()).hexdigest()
 
-    work_dir = args.workdir
-    if not work_dir:
-        work_dir = os.path.join(os.getcwd(), ".navie", "edit", issue_sha1)
-        os.makedirs(work_dir, exist_ok=True)
+    work_dir = os.path.join(".navie", "edit", issue_sha1)
+    os.makedirs(work_dir, exist_ok=True)
 
     print("Solving in directory {}".format(UserInterface.colorize(work_dir, "white")))
 

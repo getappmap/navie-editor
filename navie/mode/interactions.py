@@ -11,7 +11,7 @@ class Interactions:
 
     def enter_to_continue(self):
         confirmation = self.user_interface.get_input(
-            "Press enter to continue (or 'q' to quit):"
+            "Press enter to continue (or 'q' to quit): "
         )
         if confirmation.lower() == "q":
             raise QuitException()
@@ -28,7 +28,7 @@ class Interactions:
         self.user_interface.display_message(colored_diff_output)
         try:
             apply_changes_str = self.user_interface.get_input(
-                "Do you want to apply the changes? (y/n/q)"
+                "Do you want to apply the changes? (y/n/q): "
             )
             if apply_changes_str.lower() == "q":
                 raise QuitException()
