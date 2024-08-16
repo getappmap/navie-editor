@@ -40,12 +40,13 @@ spaces of indentation. If the original code has 8 spaces of indentation, the out
 
 The <original> and <modified> content should be wrapped in a CDATA section to avoid XML parsing issues.
 
+Ensure that all lines of the original and modified code are indented correctly, including the first line of each.
+
 ## Example output
 
 <change>
 <file change-number-for-this-file="1">src/myproj/myfunc.py</file>
 <original line-count="14" no-ellipsis="true"><![CDATA[
-class TimeStampInfo(ElementField):
     def link_to_structure(self, element_name, blueprint):
         self.element_name = element_name
         self.container = blueprint
@@ -61,7 +62,6 @@ class TimeStampInfo(ElementField):
             self._validator = self.details["validator"]
 ]]></original>
 <modified line-count="14" no-ellipsis="true"><![CDATA[
-class TimeStampInfo(ElementField):
     def link_to_structure(self, element_name, blueprint):
         self.element_name = element_name
         self.container = blueprint
