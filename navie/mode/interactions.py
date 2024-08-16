@@ -15,12 +15,22 @@ class Interactions:
         )
         if confirmation.lower() == "q":
             raise QuitException()
+        return True
 
     def collect_problem_statement(self) -> str:
         return self.user_interface.open_editor_and_read()
 
-    def prompt_user_for_adjustments(self, problem_statement: str) -> str:
-        return self.user_interface.open_editor_and_read(problem_statement)
+    def prompt_user_for_adjustments(self, content: str) -> str:
+        return self.user_interface.open_editor_and_read(content)
+
+    def prompt_for_edit(self):
+        confirmation = self.user_interface.get_input(
+            "Press enter to continue, or (e) to edit the requirements or file list: "
+        )
+        if confirmation.lower() == "q":
+            raise QuitException()
+
+        return confirmation.lower() == "e"
 
     def confirm_diff(self, file: str, diff_output: str) -> bool:
         self.user_interface.display_message(f"Diff for file {file}:")

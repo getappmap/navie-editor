@@ -168,7 +168,8 @@ def main():
             print("Error: Issue description is required in non-interactive mode")
             sys.exit(1)
 
-    problem_statement = interactions.collect_problem_statement()
+        problem_statement = interactions.collect_problem_statement()
+
     if not problem_statement.strip():
         print("Problem statement is empty. Exiting.")
         sys.exit(1)
@@ -194,8 +195,9 @@ def main():
         pass
 
     try:
-        changed = True
-        while changed:
+        replan_required = True
+        while replan_required:
+            replan_required = False
             user_interface.display_message("Planning...")
             plan = edit.plan()
 
@@ -206,16 +208,24 @@ def main():
             for file in edit.files_to_edit:
                 user_interface.display_message(f"  {file}", color="white")
 
-            changed = False
             if interactive:
-                interactions.enter_to_continue()
+                if interactions.prompt_for_edit():
+                    updated_problem_statement = (
+                        interactions.prompt_user_for_adjustments(edit.problem_statement)
+                    )
+                    if updated_problem_statement != edit.problem_statement:
+                        edit.problem_statement = updated_problem_statement
+                        replan_required = True
 
-            updated_problem_statement = interactions.prompt_user_for_adjustments(
-                edit.problem_statement
-            )
-            if updated_problem_statement != edit.problem_statement:
-                edit.problem_statement = updated_problem_statement
-                changed = True
+                    updated_files = interactions.prompt_user_for_adjustments(
+                        "\n".join(edit.files_to_edit)
+                    )
+                    if updated_files != "\n".join(edit.files_to_edit):
+                        edit.files_to_edit = [
+                            file.strip()
+                            for file in updated_files.split("\n")
+                            if file.strip()
+                        ]
 
         user_interface.display_message("Generating code...")
 
