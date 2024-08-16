@@ -306,14 +306,14 @@ class Editor:
         )
 
         detected_files = re.findall(file_regexp, content)
-        print(f"Path-like strings in content: {detected_files}")
+        # print(f"Path-like strings in content: {detected_files}")
 
         absolute_files = [os.path.abspath(f) for f in detected_files]
         unique_files = list(set(absolute_files))
         existing_files = [f for f in unique_files if os.path.exists(f)]
         files = [os.path.relpath(f) for f in existing_files]
 
-        print(f"File paths that exist on the filesystem: {files}")
+        # print(f"File paths that exist on the filesystem: {files}")
         self._log_response(", ".join(files))
 
         return files

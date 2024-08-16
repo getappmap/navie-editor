@@ -26,10 +26,10 @@ class Interactions:
         self.user_interface.display_message(f"Diff for file {file}:")
         colored_diff_output = self.colorize_diff(diff_output)
         self.user_interface.display_message(colored_diff_output)
-
-        self.user_interface.display_message("Do you want to apply the changes? (y/n/q)")
         try:
-            apply_changes_str = self.user_interface.get_input("")
+            apply_changes_str = self.user_interface.get_input(
+                "Do you want to apply the changes? (y/n/q)"
+            )
             if apply_changes_str.lower() == "q":
                 raise QuitException()
 
