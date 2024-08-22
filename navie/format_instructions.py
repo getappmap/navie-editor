@@ -1,6 +1,5 @@
 def xml_format_instructions():
-    return """
-For each change you want to make, generate a pair of tags called <original> and <modified>.
+    return """For each change you want to make, generate a pair of tags called <original> and <modified>.
 
 Wrap these tags with a <change> tag that also includes a <file> tag with the file path.
 

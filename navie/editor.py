@@ -67,6 +67,7 @@ class Editor:
     def ask(
         self,
         question,
+        question_name="ask",
         prompt=None,
         options=None,
         context=None,
@@ -75,8 +76,8 @@ class Editor:
     ):
         self._log_action("@explain", options, question)
 
-        work_dir = self._work_dir("ask")
-        input_file = os.path.join(work_dir, "ask.input.txt")
+        work_dir = self._work_dir(question_name)
+        input_file = os.path.join(work_dir, f"ask.input.txt")
         output_file = os.path.join(work_dir, "ask.md")
 
         def read_output(save_cache):

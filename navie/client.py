@@ -142,9 +142,7 @@ or explanations.
         )
         self._execute(command, log_file)
 
-    def plan(
-        self, issue_file, output_file, context_file=None, prompt_file=None, options=None
-    ):
+    def plan(self, issue_file, output_file, context_file=None, prompt_file=None):
         log_file = os.path.join(self.work_dir, "plan.log")
         input_file = os.path.join(self.work_dir, "plan.txt")
 
