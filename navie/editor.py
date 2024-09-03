@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import time
+from typing import cast
 
 import yaml
 from navie.config import Config
@@ -91,7 +92,7 @@ class Editor:
         context=None,
         cache=True,
         auto_context=True,
-    ):
+    ) -> str:
         self._log_action("@explain", options, question)
         work_dir = self._work_dir(question_name)
 
@@ -120,14 +121,17 @@ class Editor:
                 return f.read()
 
         return (
-            with_cache(
-                work_dir,
-                _ask,
-                question=question,
-                question_name=question_name,
-                prompt=prompt,
-                options=options,
-                context=context,
+            cast(
+                str,
+                with_cache(
+                    work_dir,
+                    _ask,
+                    question=question,
+                    question_name=question_name,
+                    prompt=prompt,
+                    options=options,
+                    context=context,
+                ),
             )
             if cache
             else _ask()
@@ -215,14 +219,14 @@ class Editor:
         prompt=None,
         cache=True,
         auto_context=True,
-    ):
+    ) -> str:
         work_dir = self._work_dir("plan")
         issue_file = os.path.join(work_dir, "plan.input.txt")
         output_file = os.path.join(work_dir, "plan.md")
 
         self._log_action("@plan", options, issue)
 
-        def _plan():
+        def _plan() -> str:
             with open(issue_file, "w") as f:
                 content = []
                 if options:
@@ -241,13 +245,16 @@ class Editor:
                 return f.read()
 
         self._plan = (
-            with_cache(
-                work_dir,
-                _plan,
-                issue=issue,
-                options=options,
-                context=context,
-                prompt=prompt,
+            cast(
+                str,
+                with_cache(
+                    work_dir,
+                    _plan,
+                    issue=issue,
+                    options=options,
+                    context=context,
+                    prompt=prompt,
+                ),
             )
             if cache
             else _plan()
@@ -288,7 +295,7 @@ class Editor:
         auto_context=True,
         prompt=None,
         cache=True,
-    ):
+    ) -> str:
         work_dir = self._work_dir("generate")
 
         if not plan:
@@ -301,7 +308,7 @@ class Editor:
 
         self._log_action("@generate", options, plan)
 
-        def _generate():
+        def _generate() -> str:
             plan_file = os.path.join(work_dir, "generate.input.txt")
             output_file = os.path.join(work_dir, "generate.md")
 
@@ -328,13 +335,16 @@ class Editor:
                 return f.read()
 
         return (
-            with_cache(
-                work_dir,
-                _generate,
-                plan=plan,
-                options=options,
-                context=context,
-                prompt=prompt,
+            cast(
+                str,
+                with_cache(
+                    work_dir,
+                    _generate,
+                    plan=plan,
+                    options=options,
+                    context=context,
+                    prompt=prompt,
+                ),
             )
             if cache
             else _generate()
@@ -350,7 +360,7 @@ class Editor:
         cache=True,
         extension="yaml",
         auto_context=True,
-    ):
+    ) -> str:
         work_dir = self._work_dir("search")
 
         self._log_action("@search", options, query)
@@ -388,14 +398,17 @@ class Editor:
                 return f.read()
 
         return (
-            with_cache(
-                work_dir,
-                _search,
-                query=query,
-                options=options,
-                context=context,
-                prompt=prompt,
-                format=format,
+            cast(
+                str,
+                with_cache(
+                    work_dir,
+                    _search,
+                    query=query,
+                    options=options,
+                    context=context,
+                    prompt=prompt,
+                    format=format,
+                ),
             )
             if cache
             else _search()
@@ -409,7 +422,7 @@ class Editor:
         auto_context=True,
         prompt=None,
         cache=True,
-    ):
+    ) -> str:
         work_dir = self._work_dir("test")
 
         if not context:
@@ -441,13 +454,16 @@ class Editor:
                 return f.read()
 
         return (
-            with_cache(
-                work_dir,
-                _test,
-                issue=issue,
-                options=options,
-                context=context,
-                prompt=prompt,
+            cast(
+                str,
+                with_cache(
+                    work_dir,
+                    _test,
+                    issue=issue,
+                    options=options,
+                    context=context,
+                    prompt=prompt,
+                ),
             )
             if cache
             else _test()
