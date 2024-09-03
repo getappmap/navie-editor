@@ -6,6 +6,7 @@ import time
 
 import yaml
 from navie.config import Config
+from navie.with_cache import with_cache
 from navie.fences import extract_fenced_content
 from navie.client import Client
 
@@ -20,6 +21,7 @@ class Editor:
         log_dir=None,
         log=None,
         clean=Config.get_clean(),
+        trajectory_file=Config.get_trajectory_file(),
     ):
         self.work_dir = work_dir
         os.makedirs(self.work_dir, exist_ok=True)
@@ -42,9 +44,27 @@ class Editor:
 
             self.log = log_message
         self.clean = clean
+        self.trajectory_file = trajectory_file
 
         self._plan = None
         self._context = None
+
+    def sub_editor(self, work_dir):
+        """
+        Create a new Editor instance with a subdirectory of the current work directory.
+        All other settings will be inherited from the current Editor instance.
+
+        :param work_dir: The name of the subdirectory to create.
+        """
+        return Editor(
+            os.path.join(self.work_dir, work_dir),
+            temperature=self.temperature,
+            token_limit=self.token_limit,
+            log_dir=os.path.dirname(work_dir),
+            log=self.log,
+            clean=self.clean,
+            trajectory_file=self.trajectory_file,
+        )
 
     # Set context
     def set_context(self, context):
@@ -58,9 +78,7 @@ class Editor:
         )
 
         work_dir = self._work_dir("apply", filename_slug)
-        succeeded = Client(work_dir, self.temperature, self.token_limit).apply(
-            filename, replace, search=search
-        )
+        succeeded = self._build_client(work_dir).apply(filename, replace, search=search)
         message = "Changes applied" if succeeded else "Failed to apply changes"
         self._log_response(message)
 
@@ -75,64 +93,45 @@ class Editor:
         auto_context=True,
     ):
         self._log_action("@explain", options, question)
-
         work_dir = self._work_dir(question_name)
-        input_file = os.path.join(work_dir, f"ask.input.txt")
-        output_file = os.path.join(work_dir, "ask.md")
 
-        def read_output(save_cache):
+        def _ask() -> str:
+            input_file = os.path.join(work_dir, f"ask.input.txt")
+            output_file = os.path.join(work_dir, "ask.md")
+
+            with open(input_file, "w") as f:
+                content = []
+                if options:
+                    content.append(options)
+                content.append(question)
+                f.write(" ".join(content))
+
+            context_file = self._save_context(work_dir, "ask", context, auto_context)
+            prompt_file = self._save_prompt(work_dir, "ask", prompt)
+
+            self._build_client(work_dir).ask(
+                input_file,
+                output_file,
+                prompt_file=prompt_file,
+                context_file=context_file,
+            )
+
             with open(output_file, "r") as f:
-                explanation = f.read()
+                return f.read()
 
-            if save_cache:
-                self._save_cache(
-                    work_dir,
-                    question,
-                    "question",
-                    options,
-                    "options",
-                    prompt,
-                    "prompt",
-                    context,
-                    "context",
-                )
-
-            self._log_response(explanation, output_file=output_file)
-
-            return explanation
-
-        if cache and self._all_cache_valid(
-            work_dir,
-            question,
-            "question",
-            options,
-            "options",
-            prompt,
-            "prompt",
-            context,
-            "context",
-        ):
-            print("  Using cached answer")
-            return read_output(False)
-
-        with open(input_file, "w") as f:
-            content = []
-            if options:
-                content.append(options)
-            content.append(question)
-            f.write(" ".join(content))
-
-        context_file = self._save_context(work_dir, "ask", context, auto_context)
-        prompt_file = self._save_prompt(work_dir, "ask", prompt)
-
-        Client(work_dir, self.temperature, self.token_limit).ask(
-            input_file,
-            output_file,
-            prompt_file=prompt_file,
-            context_file=context_file,
+        return (
+            with_cache(
+                work_dir,
+                _ask,
+                question=question,
+                question_name=question_name,
+                prompt=prompt,
+                options=options,
+                context=context,
+            )
+            if cache
+            else _ask()
         )
-
-        return read_output(True)
 
     def suggest_terms(self, question):
         work_dir = self._work_dir("suggest_terms")
@@ -144,9 +143,7 @@ class Editor:
         with open(input_file, "w") as f:
             f.write(question)
 
-        Client(work_dir, self.temperature, self.token_limit).terms(
-            input_file, output_file
-        )
+        self._build_client(work_dir).terms(input_file, output_file)
 
         with open(output_file, "r") as f:
             raw_terms = f.read()
@@ -166,65 +163,49 @@ class Editor:
         cache=True,
     ):
         work_dir = self._work_dir("context")
-        input_file = os.path.join(work_dir, "context.input.txt")
-        output_file = os.path.join(work_dir, "context.yaml")
 
         self._log_action("@context", options, query)
 
-        def read_output(save_cache):
+        def _context() -> dict:
+            input_file = os.path.join(work_dir, "context.input.txt")
+            output_file = os.path.join(work_dir, "context.yaml")
+
+            with open(input_file, "w") as f:
+                content = []
+                if options:
+                    content.append(options)
+                content.append(query)
+                f.write(" ".join(content))
+
+            self._build_client(work_dir).context(
+                input_file,
+                output_file,
+                exclude_pattern,
+                include_pattern,
+                vectorize_query,
+            )
+
             with open(output_file, "r") as f:
                 raw_context = f.read()
                 context = yaml.safe_load("\n".join(extract_fenced_content(raw_context)))
 
-            if save_cache:
-                self._save_cache(
-                    work_dir,
-                    query,
-                    "query",
-                    options,
-                    "options",
-                    vectorize_query,
-                    "vectorize",
-                    exclude_pattern,
-                    "exclude",
-                    include_pattern,
-                    "include",
-                )
-
-            self._context = context
-
-            self._log_response(raw_context, output_file=output_file)
-
             return context
 
-        if cache and self._all_cache_valid(
-            work_dir,
-            query,
-            "query",
-            options,
-            "options",
-            vectorize_query,
-            "vectorize",
-            exclude_pattern,
-            "exclude",
-            include_pattern,
-            "include",
-        ):
-            print("  Using cached context")
-            return read_output(False)
-
-        with open(input_file, "w") as f:
-            content = []
-            if options:
-                content.append(options)
-            content.append(query)
-            f.write(" ".join(content))
-
-        Client(work_dir, self.temperature, self.token_limit).context(
-            input_file, output_file, exclude_pattern, include_pattern, vectorize_query
+        self._context = (
+            with_cache(
+                work_dir,
+                _context,
+                query=query,
+                options=options,
+                vectorize_query=vectorize_query,
+                exclude_pattern=exclude_pattern,
+                include_pattern=include_pattern,
+            )
+            if cache
+            else _context()
         )
 
-        return read_output(True)
+        return self._context
 
     def plan(
         self,
@@ -241,58 +222,38 @@ class Editor:
 
         self._log_action("@plan", options, issue)
 
-        def read_output(save_cache):
+        def _plan():
+            with open(issue_file, "w") as f:
+                content = []
+                if options:
+                    content.append(options)
+                content.append(issue)
+                f.write(" ".join(content))
+
+            context_file = self._save_context(work_dir, "plan", context, auto_context)
+            prompt_file = self._save_prompt(work_dir, "plan", prompt)
+
+            self._build_client(work_dir).plan(
+                issue_file, output_file, context_file, prompt_file=prompt_file
+            )
+
             with open(output_file, "r") as f:
-                self._plan = f.read()
+                return f.read()
 
-            if save_cache:
-                self._save_cache(
-                    work_dir,
-                    issue,
-                    "issue",
-                    options,
-                    "options",
-                    context,
-                    "context",
-                    prompt,
-                    "prompt",
-                )
-
-            print(f"  Output is available at {output_file}")
-
-            self._log_response(self._plan, output_file=output_file)
-
-            return self._plan
-
-        if cache and self._all_cache_valid(
-            work_dir,
-            issue,
-            "issue",
-            options,
-            "options",
-            context,
-            "context",
-            prompt,
-            "prompt",
-        ):
-            print("  Using cached plan")
-            return read_output(False)
-
-        with open(issue_file, "w") as f:
-            content = []
-            if options:
-                content.append(options)
-            content.append(issue)
-            f.write(" ".join(content))
-
-        context_file = self._save_context(work_dir, "plan", context, auto_context)
-        prompt_file = self._save_prompt(work_dir, "plan", prompt)
-
-        Client(work_dir, self.temperature, self.token_limit).plan(
-            issue_file, output_file, context_file, prompt_file=prompt_file
+        self._plan = (
+            with_cache(
+                work_dir,
+                _plan,
+                issue=issue,
+                options=options,
+                context=context,
+                prompt=prompt,
+            )
+            if cache
+            else _plan()
         )
 
-        return read_output(True)
+        return self._plan
 
     def list_files(self, content):
         # Scan through all the files in the content and look for file-ish regepx patterns.
@@ -329,8 +290,6 @@ class Editor:
         cache=True,
     ):
         work_dir = self._work_dir("generate")
-        plan_file = os.path.join(work_dir, "generate.input.txt")
-        output_file = os.path.join(work_dir, "generate.md")
 
         if not plan:
             if not self._plan:
@@ -342,61 +301,44 @@ class Editor:
 
         self._log_action("@generate", options, plan)
 
-        def read_output(save_cache):
+        def _generate():
+            plan_file = os.path.join(work_dir, "generate.input.txt")
+            output_file = os.path.join(work_dir, "generate.md")
+
+            with open(plan_file, "w") as f:
+                content = []
+                if options:
+                    content.append(options)
+                content.append(plan)
+                f.write(" ".join(content))
+
+            context_file = self._save_context(
+                work_dir, "generate", context, auto_context
+            )
+            prompt_file = self._save_prompt(work_dir, "generate", prompt)
+
+            self._build_client(work_dir).generate(
+                plan_file,
+                output_file,
+                context_file=context_file,
+                prompt_file=prompt_file,
+            )
+
             with open(output_file, "r") as f:
-                code = f.read()
+                return f.read()
 
-            if save_cache:
-                self._save_cache(
-                    work_dir,
-                    plan,
-                    "plan",
-                    options,
-                    "options",
-                    context,
-                    "context",
-                    prompt,
-                    "prompt",
-                )
-
-            print(f"  Output is available at {output_file}")
-
-            self._log_response(code, output_file=output_file)
-
-            return code
-
-        if cache and self._all_cache_valid(
-            work_dir,
-            plan,
-            "plan",
-            options,
-            "options",
-            context,
-            "context",
-            prompt,
-            "prompt",
-        ):
-            print("  Using cached generated code")
-            return read_output(False)
-
-        with open(plan_file, "w") as f:
-            content = []
-            if options:
-                content.append(options)
-            content.append(plan)
-            f.write(" ".join(content))
-
-        context_file = self._save_context(work_dir, "generate", context, auto_context)
-        prompt_file = self._save_prompt(work_dir, "generate", prompt)
-
-        Client(work_dir, self.temperature, self.token_limit).generate(
-            plan_file,
-            output_file,
-            context_file=context_file,
-            prompt_file=prompt_file,
+        return (
+            with_cache(
+                work_dir,
+                _generate,
+                plan=plan,
+                options=options,
+                context=context,
+                prompt=prompt,
+            )
+            if cache
+            else _generate()
         )
-
-        return read_output(True)
 
     def search(
         self,
@@ -410,78 +352,54 @@ class Editor:
         auto_context=True,
     ):
         work_dir = self._work_dir("search")
-        input_file = os.path.join(work_dir, "search.input.txt")
-        output_file = os.path.join(work_dir, f"search.output.{extension}")
 
         self._log_action("@search", options, query)
 
-        def read_output(save_cache):
+        def _search():
+            input_file = os.path.join(work_dir, "search.input.txt")
+            output_file = os.path.join(work_dir, f"search.output.{extension}")
+
+            with open(input_file, "w") as f:
+                content = []
+                if options:
+                    content.append(options)
+                content.append(query)
+                f.write(" ".join(content))
+
+            context_file = self._save_context(work_dir, "search", context, auto_context)
+            prompt_file = self._save_prompt(work_dir, "search", prompt)
+
+            if format:
+                format_file = os.path.join(work_dir, "search.format.txt")
+                with open(format_file, "w") as f:
+                    f.write(format)
+            else:
+                format_file = None
+
+            self._build_client(work_dir).search(
+                input_file,
+                output_file,
+                context_file=context_file,
+                prompt_file=prompt_file,
+                format_file=format_file,
+            )
+
             with open(output_file, "r") as f:
-                search_results = f.read()
+                return f.read()
 
-            if save_cache:
-                self._save_cache(
-                    work_dir,
-                    query,
-                    "query",
-                    options,
-                    "options",
-                    context,
-                    "context",
-                    prompt,
-                    "prompt",
-                    format,
-                    "format",
-                )
-
-            print(f"  Output is available at {output_file}")
-
-            self._log_response(search_results, output_file=output_file)
-
-            return search_results
-
-        if cache and self._all_cache_valid(
-            work_dir,
-            query,
-            "query",
-            options,
-            "options",
-            context,
-            "context",
-            prompt,
-            "prompt",
-            format,
-            "format",
-        ):
-            print("  Using cached search results")
-            return read_output(False)
-
-        with open(input_file, "w") as f:
-            content = []
-            if options:
-                content.append(options)
-            content.append(query)
-            f.write(" ".join(content))
-
-        context_file = self._save_context(work_dir, "search", context, auto_context)
-        prompt_file = self._save_prompt(work_dir, "search", prompt)
-
-        if format:
-            format_file = os.path.join(work_dir, "search.format.txt")
-            with open(format_file, "w") as f:
-                f.write(format)
-        else:
-            format_file = None
-
-        Client(work_dir, self.temperature, self.token_limit).search(
-            input_file,
-            output_file,
-            context_file=context_file,
-            prompt_file=prompt_file,
-            format_file=format_file,
+        return (
+            with_cache(
+                work_dir,
+                _search,
+                query=query,
+                options=options,
+                context=context,
+                prompt=prompt,
+                format=format,
+            )
+            if cache
+            else _search()
         )
-
-        return read_output(True)
 
     def test(
         self,
@@ -493,69 +411,52 @@ class Editor:
         cache=True,
     ):
         work_dir = self._work_dir("test")
-        issue_file = os.path.join(work_dir, "test.input.txt")
-        output_file = os.path.join(work_dir, "test.md")
 
         if not context:
             context = self._context
 
         self._log_action("@test", options, issue)
 
-        def read_output(save_cache):
+        def _test():
+            issue_file = os.path.join(work_dir, "test.input.txt")
+            output_file = os.path.join(work_dir, "test.md")
+            with open(issue_file, "w") as f:
+                content = []
+                if options:
+                    content.append(options)
+                content.append(issue)
+                f.write(" ".join(content))
+
+            context_file = self._save_context(work_dir, "test", context, auto_context)
+            prompt_file = self._save_prompt(work_dir, "test", prompt)
+
+            self._build_client(work_dir).test(
+                issue_file,
+                output_file,
+                context_file=context_file,
+                prompt_file=prompt_file,
+            )
+
             with open(output_file, "r") as f:
-                code = f.read()
+                return f.read()
 
-            if save_cache:
-                self._save_cache(
-                    work_dir,
-                    issue,
-                    "issue",
-                    options,
-                    "options",
-                    context,
-                    "context",
-                    prompt,
-                    "prompt",
-                )
-
-            print(f"  Output is available at {output_file}")
-
-            self._log_response(code, output_file=output_file)
-
-            return code
-
-        if cache and self._all_cache_valid(
-            work_dir,
-            issue,
-            "issue",
-            options,
-            "options",
-            context,
-            "context",
-            prompt,
-            "prompt",
-        ):
-            print("  Using cached test case")
-            return read_output(False)
-
-        with open(issue_file, "w") as f:
-            content = []
-            if options:
-                content.append(options)
-            content.append(issue)
-            f.write(" ".join(content))
-
-        context_file = self._save_context(work_dir, "test", context, auto_context)
-        prompt_file = self._save_prompt(work_dir, "test", prompt)
-
-        Client(work_dir, self.temperature, self.token_limit).test(
-            issue_file,
-            output_file,
-            context_file=context_file,
-            prompt_file=prompt_file,
+        return (
+            with_cache(
+                work_dir,
+                _test,
+                issue=issue,
+                options=options,
+                context=context,
+                prompt=prompt,
+            )
+            if cache
+            else _test()
         )
 
-        return read_output(True)
+    def _build_client(self, work_dir):
+        return Client(
+            work_dir, self.temperature, self.token_limit, self.trajectory_file
+        )
 
     def _log_action(self, action, *messages):
         combined_message = " ".join([m for m in messages if m is not None and m != ""])
@@ -653,7 +554,7 @@ class Editor:
                 if os.path.isfile(os.path.join(work_dir, f))
             ]
 
-            if len(files > 0):
+            if len(files) > 0:
                 # Get the oldest file's timestamp
                 oldest_file = min(files, key=os.path.getctime)
                 oldest_timestamp = time.strftime(

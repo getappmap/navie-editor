@@ -1,9 +1,9 @@
-def has_fences(content):
+def has_fences(content) -> bool:
     first_line, last_line = content.split("\n")[:2], content.split("\n")[-2:]
     return "```" in first_line and "```" in last_line
 
 
-def extract_fenced_content(content):
+def extract_fenced_content(content: str) -> list[str]:
     content_lines = content.split("\n")
     extracted_content = []
     lines = []

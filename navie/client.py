@@ -6,9 +6,17 @@ from navie.config import Config
 
 
 class Client:
-    def __init__(self, work_dir, temperature=0.0, token_limit=None):
+
+    def __init__(
+        self,
+        work_dir,
+        temperature=None,
+        token_limit=None,
+        trajectory_file=None,
+    ):
         self.work_dir = work_dir
-        self.temperature = temperature
+        self.trajectory_file = trajectory_file
+        self.temperature = 0.0 if temperature is None else temperature
         self.token_limit = token_limit
 
     def apply(self, file_path, replace, search=None):
@@ -39,10 +47,6 @@ class Client:
         file_slug = "".join([c if c.isalnum() else "_" for c in file_path]).strip("_")
         log_file = os.path.join(self.work_dir, file_slug, "compute_update.log")
         output_file = os.path.join(self.work_dir, file_slug, "compute_update.txt")
-
-        self._log_request(
-            f"Computing update for file {file_path} with new content from {new_content_file}"
-        )
 
         command = self._build_command(
             input_path=file_path,
@@ -300,9 +304,9 @@ or explanations.
 
     def _prepare_env(self):
         env = {}
-        if self.temperature:
+        if self.temperature is not None:
             env["APPMAP_NAVIE_TEMPERATURE"] = str(self.temperature)
-        if self.token_limit:
+        if self.token_limit is not None:
             env["APPMAP_NAVIE_TOKEN_LIMIT"] = str(self.token_limit)
         return env
 
@@ -325,6 +329,8 @@ or explanations.
             cmd += f" -c {context_path}"
         if prompt_path:
             cmd += f" -p {prompt_path}"
+        if self.trajectory_file:
+            cmd += f" --trajectory-file {self.trajectory_file}"
         cmd += f" -o {output_path}"
         if additional_args:
             cmd += f" {additional_args}"
