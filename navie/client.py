@@ -1,4 +1,5 @@
 import os
+import time
 
 from navie.config import Config
 
@@ -339,22 +340,41 @@ or explanations.
         return cmd
 
     def _execute(self, command, log_file):
-        with open(log_file, "w") as f:
-            f.write("$ ")
-            f.write(command)
-            f.write("\n\n")
+        max_retries = 3
+        delay = 10
+        log_start_line = 0
 
-        result = os.system(command)
+        for attempt in range(max_retries):
+            file_mode = "a" if attempt > 0 else "w"
+            with open(log_file, file_mode) as f:
+                f.write("$ ")
+                f.write(command)
+                f.write("\n\n")
 
-        if result != 0:
+            result = os.system(command)
+
+            if result == 0:
+                return result
+
             with open(log_file, "r") as f:
-                log_content = f.read()
-                # Log the last 200 lines
-                log_lines = log_content.split("\n")[-200:]
-                print("\n".join(log_lines))
+                log_lines = f.readlines() or [""]
+                log_content = "\n".join(log_lines[log_start_line:])
+                log_start_line = len(log_lines)
 
-            raise RuntimeError(
-                f"Failed to execute command {command}. See {log_file} for details."
-            )
+                print("\n".join(log_content.split("\n")[-200:]))
 
-        return result
+            # This can be / is happening with Anthropic
+            if "Connection error" in log_content:
+                print(f"Connection error on attempt {attempt}.")
+
+                if attempt < max_retries - 1:
+                    print(f"Retrying in {delay} seconds...")
+                    time.sleep(delay)
+                    delay *= 1.5
+            else:
+                break
+
+        # Failed to complete: Connection error
+        raise RuntimeError(
+            f"Failed to execute command {command}. See {log_file} for details."
+        )
