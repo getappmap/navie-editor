@@ -358,7 +358,7 @@ or explanations.
 
             with open(log_file, "r") as f:
                 log_lines = f.readlines() or [""]
-                log_content = "\n".join(log_lines[log_start_line:])
+                log_content = "".join(log_lines[log_start_line:])
                 log_start_line = len(log_lines)
 
                 print("\n".join(log_content.split("\n")[-200:]))
