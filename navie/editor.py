@@ -90,6 +90,7 @@ class Editor:
         prompt=None,
         options=None,
         context=None,
+        context_format="yaml",
         cache=True,
         auto_context=True,
     ) -> str:
@@ -107,7 +108,9 @@ class Editor:
                 content.append(question)
                 f.write(" ".join(content))
 
-            context_file = self._save_context(work_dir, "ask", context, auto_context)
+            context_file = self._save_context(
+                work_dir, "ask", context, auto_context, context_format
+            )
             prompt_file = self._save_prompt(work_dir, "ask", prompt)
 
             self._build_client(work_dir).ask(
@@ -215,6 +218,7 @@ class Editor:
         self,
         issue,
         context=None,
+        context_format="yaml",
         options=None,
         prompt=None,
         cache=True,
@@ -234,7 +238,9 @@ class Editor:
                 content.append(issue)
                 f.write(" ".join(content))
 
-            context_file = self._save_context(work_dir, "plan", context, auto_context)
+            context_file = self._save_context(
+                work_dir, "plan", context, auto_context, context_format
+            )
             prompt_file = self._save_prompt(work_dir, "plan", prompt)
 
             self._build_client(work_dir).plan(
@@ -292,6 +298,7 @@ class Editor:
         plan=None,
         options=None,
         context=None,
+        context_format="yaml",
         auto_context=True,
         prompt=None,
         cache=True,
@@ -320,7 +327,7 @@ class Editor:
                 f.write(" ".join(content))
 
             context_file = self._save_context(
-                work_dir, "generate", context, auto_context
+                work_dir, "generate", context, auto_context, context_format
             )
             prompt_file = self._save_prompt(work_dir, "generate", prompt)
 
@@ -354,6 +361,7 @@ class Editor:
         self,
         query,
         context=None,
+        context_format="yaml",
         format=None,
         options=None,
         prompt=None,
@@ -376,7 +384,9 @@ class Editor:
                 content.append(query)
                 f.write(" ".join(content))
 
-            context_file = self._save_context(work_dir, "search", context, auto_context)
+            context_file = self._save_context(
+                work_dir, "search", context, auto_context, context_format
+            )
             prompt_file = self._save_prompt(work_dir, "search", prompt)
 
             if format:
@@ -418,6 +428,7 @@ class Editor:
         self,
         issue,
         context=None,
+        context_format="yaml",
         options=None,
         auto_context=True,
         prompt=None,
@@ -440,7 +451,9 @@ class Editor:
                 content.append(issue)
                 f.write(" ".join(content))
 
-            context_file = self._save_context(work_dir, "test", context, auto_context)
+            context_file = self._save_context(
+                work_dir, "test", context, auto_context, context_format
+            )
             prompt_file = self._save_prompt(work_dir, "test", prompt)
 
             self._build_client(work_dir).test(
@@ -492,9 +505,9 @@ class Editor:
             self.log(f"  {output_file}")
         self.log(f"  {clean_content}")
 
-    def _save_context(self, work_dir, name, context, auto_context):
+    def _save_context(self, work_dir, name, context, auto_context, context_format):
         if context:
-            context_file = os.path.join(work_dir, f"{name}.context.yaml")
+            context_file = os.path.join(work_dir, f"{name}.context.{context_format}")
             if not isinstance(context, str):
                 context = yaml.dump(context)
 
