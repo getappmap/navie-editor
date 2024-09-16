@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+from sys import stderr
 import time
 
 from navie.config import Config
@@ -339,10 +341,9 @@ or explanations.
 
         return cmd
 
-    def _execute(self, command, log_file):
-        max_retries = 3
-        delay = 10
-        log_start_line = 0
+    @staticmethod
+    def retry(max_retries: int, initial_delay: int, command: str, log_file: Path):
+        delay = initial_delay
 
         for attempt in range(max_retries):
             file_mode = "a" if attempt > 0 else "w"
@@ -351,24 +352,25 @@ or explanations.
                 f.write(command)
                 f.write("\n\n")
 
+            log_bytes_before_command = log_file.stat().st_size
+
             result = os.system(command)
 
             if result == 0:
                 return result
 
             with open(log_file, "r") as f:
-                log_lines = f.readlines() or [""]
-                log_content = "".join(log_lines[log_start_line:])
-                log_start_line = len(log_lines)
+                f.seek(log_bytes_before_command)
+                content_since_command = f.read()
 
-                print("\n".join(log_content.split("\n")[-200:]))
-
-            # This can be / is happening with Anthropic
-            if "Connection error" in log_content:
-                print(f"Connection error on attempt {attempt}.")
+            # This can is happening with Anthropic
+            if "Failed to complete: Connection error" in content_since_command:
+                stderr.write(
+                    f"'Failed to complete: Connection error' on attempt {attempt}.\n"
+                )
 
                 if attempt < max_retries - 1:
-                    print(f"Retrying in {delay} seconds...")
+                    stderr.write(f"Retrying in {delay} seconds...\n")
                     time.sleep(delay)
                     delay *= 1.5
             else:
@@ -378,3 +380,9 @@ or explanations.
         raise RuntimeError(
             f"Failed to execute command {command}. See {log_file} for details."
         )
+
+    def _execute(self, command, log_file):
+        max_retries = 3
+        delay = 10
+
+        return Client.retry(max_retries, delay, command, log_file)
