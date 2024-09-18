@@ -24,7 +24,7 @@ def test_extract_changes_valid():
     assert result == expected
 
 
-def test_extract_changes_missing_fields():
+def test_extract_changes_missing_fields_2():
     content = """
     <change>
         <file>example.py</file>
@@ -35,7 +35,21 @@ def test_extract_changes_missing_fields():
     assert result == []  # Should return an empty list due to missing 'modified' field
 
 
-def test_extract_changes_invalid_xml():
+def test_extract_changes_missing_element_text():
+    content = """
+    <change>
+        <file>example.py</file>
+        <original>print("Hello, World!")</original>
+        <modified />
+    </change>
+    """
+    result = extract_changes(content)
+    assert (
+        result == []
+    )  # Should return an empty list due to missing 'modified.text' field
+
+
+def test_extract_changes_invalid_xml_2():
     content = """
     <change>
         <file>example.py</file>
@@ -47,7 +61,7 @@ def test_extract_changes_invalid_xml():
     assert result == []  # Should return an empty list due to XML parsing error
 
 
-def test_extract_changes_multiple_changes():
+def test_extract_changes_multiple_changes_2():
     content = """
     <change>
         <file>example1.py</file>

@@ -40,7 +40,14 @@ def extract_changes(content: str) -> List[FileUpdate]:
             file = root.find("file")
             original = root.find("original")
             modified = root.find("modified")
-            if file is not None and original is not None and modified is not None:
+            if (
+                file is not None
+                and original is not None
+                and modified is not None
+                and file.text is not None
+                and original.text is not None
+                and modified.text is not None
+            ):
                 update = FileUpdate(
                     file=trim_content(file.text),
                     search=trim_content(original.text),
