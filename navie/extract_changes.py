@@ -22,6 +22,9 @@ class FileUpdate:
 
 
 def extract_changes(content: str) -> List[FileUpdate]:
+    # Gemini tends to use ``` instead of closing CDATA properly.
+    content = content.replace("```</", "]]></")
+
     # Search for <change> tags
     change_regex = re.compile(r"<change>([\s\S]*?)<\/change>", re.IGNORECASE)
     changes: List[FileUpdate] = []

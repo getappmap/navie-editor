@@ -1,4 +1,4 @@
-from typing import List
+from textwrap import dedent
 from navie.extract_changes import (
     extract_changes,
     FileUpdate,
@@ -18,6 +18,31 @@ def test_extract_changes_valid():
             file="example.py",
             search='print("Hello, World!")',
             modified='print("Hello, Universe!")',
+        )
+    ]
+    result = extract_changes(content)
+    assert result == expected
+
+
+def test_extract_changes_invalid_cdata():
+    content = dedent(
+        """\
+        <change>
+        <file>example.py</file>
+        <original><![CDATA[
+            print("Hello, World!")
+        ```</original>
+        <modified><![CDATA[
+            print("Hello, Universe!")
+        ```</modified>
+        </change>
+    """
+    )
+    expected = [
+        FileUpdate(
+            file="example.py",
+            search='    print("Hello, World!")',
+            modified='    print("Hello, Universe!")',
         )
     ]
     result = extract_changes(content)
