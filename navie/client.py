@@ -1,9 +1,10 @@
+from logging import Logger, StreamHandler
 import os
+from subprocess import run
+from sys import stderr
 import time
 
 from navie.config import Config
-
-# EXCLUDE_PYTHON_TESTS_PATTERN = """(\\btesting\\b|\\btest\\b|\\btests\\b|\\btest_|_test\\.py$|\\.txt$|\\.html$|\\.rst$|\\.md$)"""
 
 
 class Client:
@@ -20,7 +21,7 @@ class Client:
         self.temperature = 0.0 if temperature is None else temperature
         self.token_limit = token_limit
 
-    def apply(self, file_path, replace, search=None):
+    def apply(self, file_path, replace, search=None) -> bool:
         log_file = os.path.join(self.work_dir, "apply.log")
         search_file = os.path.join(self.work_dir, "search.txt")
         replace_file = os.path.join(self.work_dir, "replace.txt")
@@ -28,21 +29,19 @@ class Client:
         with open(replace_file, "w") as replace_f:
             replace_f.write(replace)
 
-        env = self._prepare_env()
-        env_str = " ".join([f"{k}={v}" for k, v in env.items()])
-
-        cmd = f"{env_str} {Config.get_appmap_command()} apply"
+        cmd = [*Config.get_appmap_command(), "apply"]
 
         if search is not None:
             with open(search_file, "w") as search_f:
                 search_f.write(search)
-            cmd += f" -s {search_file}"
+            cmd += ["-s", search_file]
 
-        cmd += f" -r {replace_file}"
-        cmd += f" {file_path}"
-        cmd += f" > {log_file} 2>&1"
-        exit_status = self._execute(cmd, log_file)
-        return exit_status == 0
+        cmd += ["-r", replace_file, file_path]
+        try:
+            self._execute(cmd, log_file)
+            return True
+        except Exception:
+            return False
 
     def compute_update(self, file_path, new_content_file, prompt_file=None):
         file_slug = "".join([c if c.isalnum() else "_" for c in file_path]).strip("_")
@@ -53,7 +52,6 @@ class Client:
             input_path=file_path,
             context_path=new_content_file,
             output_path=output_file,
-            log_file=log_file,
             prompt_path=prompt_file,
         )
         exit_status = self._execute(command, log_file)
@@ -76,7 +74,6 @@ class Client:
         command = self._build_command(
             input_path=question_file,
             output_path=output_file,
-            log_file=log_file,
             prompt_path=prompt_file,
         )
         self._execute(command, log_file)
@@ -107,7 +104,6 @@ or explanations.
         command = self._build_command(
             input_path=input_file,
             output_path=output_file,
-            log_file=log_file,
             prompt_path=prompt_file,
         )
         self._execute(command, log_file)
@@ -142,9 +138,7 @@ or explanations.
 """
             )
 
-        command = self._build_command(
-            input_path=question_file, output_path=output_file, log_file=log_file
-        )
+        command = self._build_command(input_path=question_file, output_path=output_file)
         self._execute(command, log_file)
 
     def plan(self, issue_file, output_file, context_file=None, prompt_file=None):
@@ -166,7 +160,6 @@ or explanations.
             output_path=output_file,
             context_path=context_file,
             prompt_path=prompt_file,
-            log_file=log_file,
         )
         self._execute(command, log_file)
 
@@ -189,7 +182,7 @@ or explanations.
             if context_file:
                 input_tokens.append("/nocontext")
             if format_file:
-                input_tokens.append(f"/noformat")
+                input_tokens.append("/noformat")
             input_tokens.append(query_content)
             input = " ".join(input_tokens)
             search_f.write(input)
@@ -215,7 +208,6 @@ or explanations.
             output_path=output_file,
             context_path=context_file,
             prompt_path=prompt_file,
-            log_file=log_file,
         )
         self._execute(command, log_file)
 
@@ -237,7 +229,6 @@ or explanations.
         command = self._build_command(
             input_path=input_file,
             output_path=output_file,
-            log_file=log_file,
         )
         self._execute(command, log_file)
 
@@ -268,7 +259,6 @@ or explanations.
             output_path=output_file,
             context_path=context_file,
             prompt_path=prompt_file,
-            log_file=log_file,
         )
         self._execute(command, log_file)
 
@@ -299,12 +289,11 @@ or explanations.
             output_path=output_file,
             context_path=context_file,
             prompt_path=prompt_file,
-            log_file=log_file,
         )
         self._execute(command, log_file)
 
     def _prepare_env(self):
-        env = {}
+        env = os.environ.copy()
         if self.temperature is not None:
             env["APPMAP_NAVIE_TEMPERATURE"] = str(self.temperature)
         if self.token_limit is not None:
@@ -314,67 +303,68 @@ or explanations.
     def _build_command(
         self,
         output_path,
-        log_file,
         context_path=None,
         input_path=None,
         prompt_path=None,
-        additional_args=None,
     ):
-        env = self._prepare_env()
-        env_str = " ".join([f"{k}={v}" for k, v in env.items()])
+        cmd = [*Config.get_appmap_command(), "navie", "--log-navie"]
 
-        cmd = f"{env_str} {Config.get_appmap_command()} navie --log-navie"
         if input_path:
-            cmd += f" -i {input_path}"
+            cmd += ["-i", input_path]
         if context_path:
-            cmd += f" -c {context_path}"
+            cmd += ["-c", context_path]
         if prompt_path:
-            cmd += f" -p {prompt_path}"
+            cmd += ["-p", prompt_path]
         if self.trajectory_file:
-            cmd += f" --trajectory-file {self.trajectory_file}"
-        cmd += f" -o {output_path}"
-        if additional_args:
-            cmd += f" {additional_args}"
-        cmd += f" > {log_file} 2>&1"
+            cmd += ["--trajectory-file", self.trajectory_file]
+        cmd += ["-o", output_path]
 
         return cmd
 
-    def _execute(self, command, log_file):
-        max_retries = 3
-        delay = 10
-        log_start_line = 0
+    def _execute(self, command: list[str], log_file: str):
+        try:
+            with open(log_file, "w") as log:
+                logger = Logger(__name__, "INFO")
+                logger.addHandler(StreamHandler(log))
+                logger.addHandler(StreamHandler(stderr))
 
-        for attempt in range(max_retries):
-            file_mode = "a" if attempt > 0 else "w"
-            with open(log_file, file_mode) as f:
-                f.write("$ ")
-                f.write(command)
-                f.write("\n\n")
+                @retry(tries=3, delay=10, logger=logger, backoff=1.5)
+                def exec():
+                    logger.debug("$ %s", " ".join(command))
+                    return run(
+                        command,
+                        stdout=log,
+                        stderr=log,
+                        env=self._prepare_env(),
+                        check=True,
+                    )
 
-            result = os.system(command)
+                return exec()
 
-            if result == 0:
-                return result
+        except Exception:
+            # Print a tail of the log file for reference
+            with open(log_file, "r") as log:
+                lines = log.readlines()
+                for line in lines[-200:]:
+                    print(line, end="", file=stderr)
+            raise
 
-            with open(log_file, "r") as f:
-                log_lines = f.readlines() or [""]
-                log_content = "".join(log_lines[log_start_line:])
-                log_start_line = len(log_lines)
 
-                print("\n".join(log_content.split("\n")[-200:]))
+def retry(tries=3, delay=10, logger=None, backoff=1.5):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            attempt = 0
+            while attempt < tries:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    attempt += 1
+                    if logger:
+                        logger.error(f"Attempt {attempt}/{tries} failed: {e}")
+                    if attempt == tries:
+                        raise
+                    time.sleep(delay * (backoff**attempt))
 
-            # This can be / is happening with Anthropic
-            if "Connection error" in log_content:
-                print(f"Connection error on attempt {attempt}.")
+        return wrapper
 
-                if attempt < max_retries - 1:
-                    print(f"Retrying in {delay} seconds...")
-                    time.sleep(delay)
-                    delay *= 1.5
-            else:
-                break
-
-        # Failed to complete: Connection error
-        raise RuntimeError(
-            f"Failed to execute command {command}. See {log_file} for details."
-        )
+    return decorator

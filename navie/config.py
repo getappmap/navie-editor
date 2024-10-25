@@ -7,12 +7,12 @@ class Config:
     DEFAULT_CLEAN = False
     DEFAULT_TRAJECTORY_FILE = None
 
-    appmap_command = os.getenv("APPMAP_COMMAND", DEFAULT_APPMAP_COMMAND)
+    appmap_command = os.getenv("APPMAP_COMMAND", DEFAULT_APPMAP_COMMAND).split()
     clean = os.getenv("APPMAP_NAVIE_CLEAN", str(DEFAULT_CLEAN))
     trajectory_file = os.getenv("APPMAP_NAVIE_TRAJECTORY_FILE", None)
 
     @staticmethod
-    def get_appmap_command() -> str:
+    def get_appmap_command() -> list[str]:
         return Config.appmap_command
 
     @staticmethod
