@@ -330,7 +330,7 @@ or explanations.
 
                 @retry(tries=3, delay=10, logger=logger, backoff=1.5)
                 def exec():
-                    logger.info("$ %s", " ".join(command))
+                    logger.debug("$ %s", " ".join(command))
                     return run(
                         command,
                         stdout=log,
