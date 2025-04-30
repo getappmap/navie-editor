@@ -163,6 +163,28 @@ or explanations.
         )
         self._execute(command, log_file)
 
+    def review(self, question_file, output_file, context_file=None, prompt_file=None):
+        log_file = os.path.join(self.work_dir, "review.log")
+        input_file = os.path.join(self.work_dir, "review.txt")
+
+        with open(question_file, "r") as question_f:
+            question_content = question_f.read()
+        with open(input_file, "w") as review_f:
+            input_tokens = ["@review"]
+            if context_file:
+                input_tokens.append("/nocontext")
+            if question_content:
+                input_tokens.append(question_content)
+            review_f.write(" ".join(input_tokens))
+
+        command = self._build_command(
+            input_path=input_file,
+            output_path=output_file,
+            context_path=context_file,
+            prompt_path=prompt_file,
+        )
+        self._execute(command, log_file)
+
     def search(
         self,
         query_file,

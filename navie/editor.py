@@ -424,6 +424,66 @@ class Editor:
             else _search()
         )
 
+    def review(
+        self,
+        question=None,
+        context=None,
+        context_format="yaml",
+        options=None,
+        auto_context=True,
+        prompt=None,
+        cache=True,
+    ) -> str:
+        work_dir = self._work_dir("review")
+
+        if not context:
+            context = self._context
+
+        self._log_action("@review", options, question)
+
+        def _review():
+            input_file = os.path.join(work_dir, "review.input.txt")
+            output_file = os.path.join(work_dir, "review.md")
+
+            with open(input_file, "w") as f:
+                content = []
+                if options:
+                    content.append(options)
+                if question:
+                    content.append(question)
+                f.write(" ".join(content))
+
+            context_file = self._save_context(
+                work_dir, "review", context, auto_context, context_format
+            )
+            prompt_file = self._save_prompt(work_dir, "review", prompt)
+
+            self._build_client(work_dir).review(
+                input_file,
+                output_file,
+                context_file=context_file,
+                prompt_file=prompt_file,
+            )
+
+            with open(output_file, "r") as f:
+                return f.read()
+
+        return (
+            cast(
+                str,
+                with_cache(
+                    work_dir,
+                    _review,
+                    question=question,
+                    options=options,
+                    context=context,
+                    prompt=prompt,
+                ),
+            )
+            if cache
+            else _review()
+        )
+
     def test(
         self,
         issue,
