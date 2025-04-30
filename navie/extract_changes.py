@@ -1,6 +1,6 @@
 import re
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Any, Optional
+from typing import List
 
 
 class FileUpdate:
