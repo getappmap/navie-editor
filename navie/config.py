@@ -1,13 +1,22 @@
 import os
+from pathlib import Path
 from typing import Optional
 
 
 class Config:
-    DEFAULT_APPMAP_COMMAND = "appmap"
+    DEFAULT_APPMAP_COMMAND = (
+        Path(os.environ.get("HOME", "/")) / ".appmap" / "bin" / "appmap"
+    )
+    DEFAULT_APPMAP_SCANNER_COMMAND = (
+        Path(os.environ.get("HOME", "/")) / ".appmap" / "bin" / "scanner"
+    )
     DEFAULT_CLEAN = False
     DEFAULT_TRAJECTORY_FILE = None
 
-    appmap_command = os.getenv("APPMAP_COMMAND", DEFAULT_APPMAP_COMMAND).split()
+    appmap_command = os.getenv("APPMAP_COMMAND", str(DEFAULT_APPMAP_COMMAND)).split()
+    appmap_scanner_command = os.getenv(
+        "APPMAP_SCANNER_COMMAND", str(DEFAULT_APPMAP_SCANNER_COMMAND)
+    ).split()
     clean = os.getenv("APPMAP_NAVIE_CLEAN", str(DEFAULT_CLEAN))
     trajectory_file = os.getenv("APPMAP_NAVIE_TRAJECTORY_FILE", None)
 
@@ -18,6 +27,14 @@ class Config:
     @staticmethod
     def set_appmap_command(command):
         Config.appmap_command = command
+
+    @staticmethod
+    def get_appmap_scanner_command() -> list[str]:
+        return Config.appmap_scanner_command
+
+    @staticmethod
+    def set_appmap_scanner_command(command):
+        Config.appmap_scanner_command = command
 
     @staticmethod
     def get_clean() -> bool:
