@@ -185,6 +185,22 @@ or explanations.
         )
         self._execute(command, log_file)
 
+    def diff(self, base=None, format=None, output_file=None):
+        log_file = os.path.join(self.work_dir, "diff.log")
+        input_file = os.path.join(self.work_dir, "diff.txt")
+
+        with open(input_file, "w") as input_f:
+            input_tokens = ["@diff"]
+            if base:
+                input_tokens.append("/base=" + base)
+            if format:
+                input_tokens.append("/format=" + format)
+            input = " ".join(input_tokens)
+            input_f.write(input)
+
+        command = self._build_command(input_path=input_file, output_path=output_file)
+        self._execute(command, log_file)
+
     def search(
         self,
         query_file,

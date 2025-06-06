@@ -357,6 +357,36 @@ class Editor:
             else _generate()
         )
 
+    def diff(
+        self,
+        base=None,
+        format=None,
+    ) -> str:
+        work_dir = self._work_dir("diff")
+        self._log_action("@diff", format)
+
+        def _diff() -> str:
+            output_file = os.path.join(work_dir, "diff.output.txt")
+
+            self._build_client(work_dir).diff(base, format, output_file)
+
+            with open(output_file, "r") as f:
+                return f.read()
+
+        return (
+            cast(
+                str,
+                with_cache(
+                    work_dir,
+                    _diff,
+                    base=base,
+                    format=format,
+                ),
+            )
+            if format
+            else _diff()
+        )
+
     def search(
         self,
         query,
